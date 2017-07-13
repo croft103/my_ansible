@@ -1,0 +1,28 @@
+*filter
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [0:0]
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+# Allow ICMP from Nagios server only
+-A INPUT -s 164.67.153.224/32 -p icmp --icmp-type echo-request -j ACCEPT
+# Allow NRPE from Nagios server only
+-A INPUT -s 164.67.153.224/32 -p tcp -m state --state NEW -m tcp --dport 5666 -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+# Allow ssh from 164.67.153.0
+-A INPUT -s 164.67.153.0/24 -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+# Allow key Archivematica ports for Shira 
+# Opened up the full dhcp scope from Confluence documentation for 5th floor YRL 
+-A INPUT -m iprange --src-range 164.67.17.20-164.67.17.254 -p tcp -m state --state NEW -m tcp --dport 81 -j ACCEPT
+-A INPUT -m iprange --src-range 164.67.17.20-164.67.17.254 -p tcp -m state --state NEW -m tcp --dport 8001 -j ACCEPT
+# Open up diit_staff range for http
+-A INPUT -s 164.67.152.0/24 -p tcp -m state --state NEW -m tcp --dport 81 -j ACCEPT
+-A INPUT -s 164.67.152.0/24 -p tcp -m state --state NEW -m tcp --dport 8001 -j ACCEPT
+# Open up BOL VPN range for http
+-A INPUT -s 128.97.224.0/24,128.97.228.0/24,128.97.232.0/24,128.97.234.0/24,128.97.244.0/23,128.97.247.0/24,128.97.248.0/24,149.142.26.0/24,149.142.224.0/23,164.67.62.0/27,164.67.62.80/28,164.67.62.96/28,169.232.224.0/23 -p tcp -m state --state NEW -m tcp --dport 81 -j ACCEPT
+# Allow key Archivematica ports for Charlie 
+-A INPUT -s 47.144.151.227 -p tcp -m state --state NEW -m tcp --dport 81 -j ACCEPT
+-A INPUT -s 47.144.151.227 -p tcp -m state --state NEW -m tcp --dport 8001 -j ACCEPT
+-A INPUT -p icmp --icmp-type echo-request -j DROP
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+COMMIT
