@@ -1,0 +1,227 @@
+---
+ - hosts: all
+#
+# add step to do yum update
+#
+
+#
+# Step 2: Add Extra Repos
+#
+   roles:
+     - ansible-role-repo-epel
+
+   tasks:
+     - name: Add Elasticsearch repo
+       yum_repository:
+         name: elasticsearch-1.7 
+         description: Elasticsearch repository for 1.7 packages 
+         file: elasticsearch
+         baseurl: https://packages.elastic.co/elasticsearch/1.7/centos
+         gpgcheck: yes
+         gpgkey: https://packages.elastic.co/GPG-KEY-elasticsearch
+         enabled: yes
+
+     - name: Add Archivematica repo
+       yum_repository:
+         name: archivematica 
+         description: archivematica 
+         file: archivematica 
+         baseurl: https://packages.archivematica.org/1.6.x/centos 
+         gpgcheck: no 
+         enabled: yes
+#
+# Step 3: Add Service Dependencies
+#
+     - name: Install java
+       yum:
+         name: java-1.8.0-openjdk-headless
+         state: present
+
+     - name: Install elasticsearch 
+       yum:
+         name: elasticsearch 
+         state: present
+
+     - name: Install mariadb-server 
+       yum:
+         name: mariadb-server 
+         state: present
+
+     - name: Install gearmand 
+       yum:
+         name: gearmand 
+         state: present
+
+     - service:
+         name: elasticsearch
+         enabled: yes
+         state: started
+
+     - service:
+         name: mariadb 
+         enabled: yes
+         state: started
+
+     - service:
+         name: gearmand
+         enabled: yes
+         state: started
+#
+# Step 4: install ArchivematicaStorage Service
+#
+     - name: Install python-pip
+       yum:
+         name: python-pip
+         state: present
+     
+     - name: Install archivematica-storage-service
+       yum:
+         name: archivematica-storage-service 
+         state: present
+
+     - name: Populate the database, get django files as Archivematica user
+       shell: bash -c "set -a -e -x; source /etc/sysconfig/archivematica-storage-service; cd /usr/share/archivematica/storage-service; /usr/lib/python2.7/archivematica/storage-service/bin/python manage.py migrate; /usr/lib/python2.7/archivematica/storage-service/bin/python manage.py collectstatic --noinput" 
+       become_user: archivematica
+
+     - service:
+         name: archivematica-storage-service 
+         enabled: yes
+         state: started
+
+     - service:
+         name: nginx
+         enabled: yes
+         state: started
+#
+# Step 5: Install Archivematica Dashboard and MCP Server 
+#
+     - name: Install archivematica-common
+       yum:
+         name: archivematica-common
+         state: present
+
+     - name: Install archivematica-mcp-server
+       yum:
+         name: archivematica-mcp-server
+         state: present
+
+     - name: Install archivematica-dashboard
+       yum:
+         name: archivematica-dashboard
+         state: present
+
+     - name: Create mysql database 
+       shell: bash -c "mysql -hlocalhost -uroot -e 'DROP DATABASE IF EXISTS MCP; CREATE DATABASE MCP CHARACTER SET utf8 COLLATE utf8_unicode_ci;'"
+       become_user: root
+
+     - name: Create mysql user 
+       shell: bash -c "mysql -hlocalhost -uroot -e 'CREATE USER '\''archivematica'\''@'\''localhost'\'' IDENTIFIED BY '\''demo'\'';'"
+       become_user: root
+
+     - name: Set permissions
+       shell: bash -c "mysql -hlocalhost -uroot -e 'GRANT ALL ON MCP.* TO '\''archivematica'\''@'\''localhost'\'';'"
+       become_user: root
+
+     - name: As archivematica user, run migrations
+       shell: bash -c "set -a -e -x; source /etc/sysconfig/archivematica-dashboard; cd /usr/share/archivematica/dashboard; /usr/lib/python2.7/archivematica/dashboard/bin/python manage.py syncdb --noinput"
+       become_user: archivematica
+
+     - service:
+         name: archivematica-mcp-server 
+         enabled: yes
+         state: started
+
+     - service:
+         name: archivematica-dashboard 
+         enabled: yes
+         state: started
+
+     - name: Reload nginx
+       systemd:
+         name: nginx
+         state: reloaded
+
+#
+# Step 6: Installing Archivematica MCP client
+#
+     - name: Add archivematica-extras repo
+       yum_repository:
+         name: archivematica-extras
+         description: archivematica-extras
+         file: archivematica-extras
+         baseurl: https://packages.archivematica.org/1.6.x/centos-extras
+         gpgcheck: no
+         enabled: yes
+
+     - name: Install Nux multimedia repo
+       yum:
+         name: https://li.nux.ro/download/nux/dextop/el7/x86_64/nux-dextop-release-0-5.el7.nux.noarch.rpm
+         state: present
+
+     - name: Install forensic tools repo
+       yum:
+         name: https://forensics.cert.org/cert-forensics-tools-release-el7.rpm
+         state: present
+#####
+# These steps were added to Artefactual's documented installation steps due to missing dependencies.
+#
+#   openjpeg is deprecated in RHEL7 (openjpeg2)
+#   (lib)fribidi (x86_64) in RHEL7 is statically linked 32bit (?). The 64bit version is a dependency of 
+#   archivematica-mcp-client.
+#
+     - name: Install openjpeg 1-5.1-10 from the CentOS repo
+       yum:
+         name: http://mirror.centos.org/centos/7/os/x86_64/Packages/openjpeg-1.5.1-10.el7.x86_64.rpm
+         state: present
+
+     - name: Install libfribidi
+       yum:
+         name: https://li.nux.ro/download/nux/dextop/retired/libfribidi-0.19.2-3.el7.nux.x86_64.rpm
+         state: present
+
+     - name: Install fribidi
+       yum:
+         name: http://li.nux.ro/download/nux/dextop/el7/x86_64/fribidi-0.19.2-3.el7.nux.x86_64.rpm
+         state: present
+#
+#
+#####
+     - name: Install archivematica-mcp-client
+       yum:
+         name: archivematica-mcp-client
+         state: present
+
+     - name: The MCP client looks for clamdscan
+       command: cp /usr/bin/clamscan /usr/bin/clamdscan 
+     
+     - file:
+         src: /usr/bin/7za
+         dest: /usr/bin/7z
+         state: link
+
+     - service:
+         name: archivematica-mcp-client 
+         enabled: yes
+         state: started
+
+     - service:
+         name: fits-nailgun 
+         enabled: yes
+         state: started
+
+#
+# Add our specific firewall configuration, then restart the service
+#
+     - copy:
+         src: myfiles/iptables
+         dest: /etc/sysconfig/iptables
+         owner: root
+         group: root
+         mode: 0600
+         backup: yes
+       notify:
+         - restart iptables 
+
+   handlers:
+     - name: restart iptables
+       service: name=iptables state=restarted
