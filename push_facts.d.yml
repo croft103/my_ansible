@@ -1,0 +1,15 @@
+---
+# Playbook to push out facts.d directory and local fact files
+
+- hosts: all 
+  become: yes
+
+  tasks:
+   - name: Create facts.d directory 
+     file: path=/etc/ansible/facts.d state=directory owner=ansible group=wheel mode=0755 
+   
+   - name: Copy fact 1 
+     copy: src=/etc/ansible/facts.d/rhn_sub.fact dest=/etc/ansible/facts.d owner=ansible group=wheel mode=0755
+
+   - name: Copy fact 2
+     copy: src=/etc/ansible/facts.d/rpm_last.fact dest=/etc/ansible/facts.d owner=ansible group=wheel mode=0755
