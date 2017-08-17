@@ -1,0 +1,29 @@
+---
+- name: ansible_uclalib_yum_repo.yml
+  hosts: all
+  become: yes
+  become_method: sudo
+
+  roles:
+    - { role: ansible_uclalib_role_yumrepo }
+
+  tasks:
+    - name: Install MySQL meb
+      yum:
+        name: meb-3.12.3 
+        state: present
+
+    - name: Install MySQL client 
+      yum:
+        name: MySQL-client-advanced 
+        state: present
+
+    - name: Install MySQL shared
+      yum:
+        name: MySQL-shared-compat-advanced 
+        state: present
+
+    - name: Install MySQL server 
+      yum:
+        name: MySQL-server-advanced  
+        state: present

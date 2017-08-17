@@ -1,0 +1,12 @@
+---
+ - hosts: all
+   vars:
+     tomcat_applications:
+       - app_name: jasperserver
+         shut_port: 8006
+         conn_port: 8081
+         rproxy_path: jasperserver
+   roles:
+     - ansible_uclalib_role_java
+     - ansible_uclalib_role_apache
+     - ansible_uclalib_role_tomcat
